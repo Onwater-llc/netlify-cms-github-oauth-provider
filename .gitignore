@@ -6,8 +6,8 @@ lib-cov
 *.out
 *.pid
 *.gz
-.*
 *.sqlite
+.env
 pids
 logs
 results

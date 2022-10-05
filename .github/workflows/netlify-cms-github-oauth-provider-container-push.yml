@@ -1,0 +1,48 @@
+name: Push image to Amazon Lightsail Container Service
+
+on:
+  push:
+    branches:
+      - main
+env:
+  AWS_REGION: us-west-2
+  IMAGE_NAME: netlify-cms
+  SERVICE_NAME: netlify-cms-oauth-provider
+
+jobs:
+  build:
+    name: Build Image
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    
+    - name: Upgrade AWS CLI version and setup lightsailctl
+      run: |
+       aws --version
+       curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+       unzip awscliv2.zip
+       sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+       which aws
+       aws --version
+       sudo curl "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" -o "/usr/local/bin/lightsailctl"
+       sudo chmod +x /usr/local/bin/lightsailctl
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Build and tag the image
+      id: build-image
+      run: |
+        docker build -f ./Dockerfile -t ${{ env.IMAGE_NAME }}:latest ./
+        
+    - name: Push image to AWS lightsail container service
+      id: push-image
+      run: |
+        aws lightsail push-container-image --service-name=${{ env.SERVICE_NAME }} --image=${{ env.IMAGE_NAME }}:latest --label=${{ env.IMAGE_NAME }} --region=${{ env.AWS_REGION }}
